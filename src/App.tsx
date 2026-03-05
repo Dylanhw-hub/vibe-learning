@@ -117,8 +117,9 @@ export default function App() {
       setLoading(false);
     } catch (err) {
       console.error('Error generating experience:', err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
       setError(
-        'Something went wrong while creating your experience. Please try refreshing.'
+        `Something went wrong while creating your experience: ${msg}`
       );
       setLoading(false);
     }

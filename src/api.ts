@@ -284,13 +284,22 @@ export async function generateExperience(
   const data = await response.json();
   if (data.error) throw new Error(data.error);
 
-  // Parse JSON — handle potential markdown code fences
+  // Parse JSON — handle potential markdown code fences and surrounding text
   let content = data.content.trim();
   if (content.startsWith('```')) {
-    content = content.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+    content = content.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?\s*```\s*$/, '');
   }
 
-  return JSON.parse(content);
+  try {
+    return JSON.parse(content);
+  } catch {
+    // Fallback: try to extract JSON array from response
+    const match = content.match(/\[[\s\S]*\]/);
+    if (match) {
+      return JSON.parse(match[0]);
+    }
+    throw new Error('Could not parse experience blocks from AI response');
+  }
 }
 
 export interface PersonalisedClosing {
@@ -344,8 +353,16 @@ export async function generatePersonalisedClosing(
 
   let content = data.content.trim();
   if (content.startsWith('```')) {
-    content = content.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+    content = content.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?\s*```\s*$/, '');
   }
 
-  return JSON.parse(content);
+  try {
+    return JSON.parse(content);
+  } catch {
+    const match = content.match(/\{[\s\S]*\}/);
+    if (match) {
+      return JSON.parse(match[0]);
+    }
+    throw new Error('Could not parse closing from AI response');
+  }
 }
