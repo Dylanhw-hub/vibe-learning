@@ -11,13 +11,14 @@ export type Stage =
   | 'experience'
   | 'completion';
 
-export type Modality = 'scenario' | 'challenge' | 'build' | 'reflection';
+export type Modality = 'scenario' | 'challenge' | 'reflection';
 
 export interface DiagnosticData {
   learningFocus: string;
   realContext: string;
   keyGap: string;
   suggestedModality: string;
+  suggestedVisualStyle: string;
   tonePace: string;
   motivationHook: string;
 }

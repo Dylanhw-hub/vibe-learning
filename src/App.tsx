@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   Stage,
   Message,
@@ -12,6 +12,7 @@ import {
   generateReflection,
   generateExperience,
 } from './api';
+import { getThemeById } from './themes';
 import Welcome from './components/Welcome';
 import Diagnostic from './components/Diagnostic';
 import Reflection from './components/Reflection';
@@ -33,8 +34,25 @@ export default function App() {
   const [experienceResponses, setExperienceResponses] = useState<
     ExperienceResponse[]
   >([]);
+  const [visualStyle, setVisualStyle] = useState<string>('calm-focused');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Load Google Fonts whenever the visual style changes
+  useEffect(() => {
+    const theme = getThemeById(visualStyle);
+    const existingLink = document.getElementById('theme-fonts') as HTMLLinkElement | null;
+
+    if (existingLink) {
+      existingLink.href = theme.fontUrl;
+    } else {
+      const link = document.createElement('link');
+      link.id = 'theme-fonts';
+      link.rel = 'stylesheet';
+      link.href = theme.fontUrl;
+      document.head.appendChild(link);
+    }
+  }, [visualStyle]);
 
   const goTo = useCallback((nextStage: Stage) => {
     setTransitioning(true);
@@ -58,6 +76,10 @@ export default function App() {
     try {
       diagData = await extractDiagnosticData(conversationMessages);
       setDiagnosticData(diagData);
+      // Apply the AI-suggested visual style
+      if (diagData.suggestedVisualStyle) {
+        setVisualStyle(diagData.suggestedVisualStyle);
+      }
     } catch (err) {
       console.error('Error extracting diagnostic data:', err);
       // Fallback: create minimal diagnostic data so we can continue
@@ -66,6 +88,7 @@ export default function App() {
         realContext: 'Professional development',
         keyGap: 'To be explored through the learning experience',
         suggestedModality: 'scenario',
+        suggestedVisualStyle: 'calm-focused',
         tonePace: 'Moderate depth and pace',
         motivationHook: 'Personal growth',
       };
@@ -102,6 +125,10 @@ export default function App() {
     goTo('modality');
   };
 
+  const handleStyleChange = (styleId: string) => {
+    setVisualStyle(styleId);
+  };
+
   const handleModalitySelect = async (modality: Modality) => {
     setLoading(true);
     setError(null);
@@ -111,7 +138,8 @@ export default function App() {
       const blocks = await generateExperience(
         messages,
         diagnosticData!,
-        modality
+        modality,
+        visualStyle
       );
       setExperienceBlocks(blocks);
       setLoading(false);
@@ -136,12 +164,13 @@ export default function App() {
     setReflection('');
     setExperienceBlocks([]);
     setExperienceResponses([]);
+    setVisualStyle('calm-focused');
     setError(null);
     goTo('welcome');
   };
 
   return (
-    <div className="app">
+    <div className={`app theme-${visualStyle}`}>
       <div className={`container ${transitioning ? 'stage-exit' : 'stage-enter'}`}>
         {error && (
           <div className="error-banner">
@@ -173,7 +202,9 @@ export default function App() {
         {stage === 'modality' && (
           <ModalityChoice
             suggestedModality={diagnosticData?.suggestedModality}
+            suggestedStyle={visualStyle}
             onSelect={handleModalitySelect}
+            onStyleChange={handleStyleChange}
           />
         )}
 

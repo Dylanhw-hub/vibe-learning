@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { Modality } from '../types';
+import { themes, ThemeConfig } from '../themes';
 
 interface ModalityChoiceProps {
   suggestedModality?: string;
+  suggestedStyle?: string;
   onSelect: (modality: Modality) => void;
+  onStyleChange: (styleId: string) => void;
 }
 
 const MODALITIES: { id: Modality; title: string; description: string }[] = [
@@ -20,12 +23,6 @@ const MODALITIES: { id: Modality; title: string; description: string }[] = [
       "Tackle a concrete problem head-on. Think it through, try your approach, and get feedback on how you're thinking.",
   },
   {
-    id: 'build',
-    title: 'Build something to share',
-    description:
-      'Create something short and practical you could actually use with your team. Learn by making.',
-  },
-  {
     id: 'reflection',
     title: 'Guided reflection',
     description:
@@ -35,9 +32,21 @@ const MODALITIES: { id: Modality; title: string; description: string }[] = [
 
 export default function ModalityChoice({
   suggestedModality,
+  suggestedStyle,
   onSelect,
+  onStyleChange,
 }: ModalityChoiceProps) {
   const [selected, setSelected] = useState<Modality | null>(null);
+  const [showStyleOptions, setShowStyleOptions] = useState(false);
+  const [activeStyle, setActiveStyle] = useState(suggestedStyle || 'calm-focused');
+
+  const currentTheme = themes.find((t) => t.id === activeStyle) || themes[3];
+
+  const handleStyleSelect = (theme: ThemeConfig) => {
+    setActiveStyle(theme.id);
+    onStyleChange(theme.id);
+    setShowStyleOptions(false);
+  };
 
   return (
     <div className="modality-choice">
@@ -45,6 +54,54 @@ export default function ModalityChoice({
       <p className="modality-subtitle">
         Pick the approach that feels right for you right now.
       </p>
+
+      {/* Style selector */}
+      <div className="style-section">
+        <div className="style-label">Visual style</div>
+        <div className="style-recommended">
+          <div className="style-recommended-info">
+            <span className="style-name">{currentTheme.name}</span>
+            <span className="style-vibe">{currentTheme.vibe}</span>
+          </div>
+          <button
+            className="style-change-btn"
+            onClick={() => setShowStyleOptions(!showStyleOptions)}
+          >
+            {showStyleOptions ? 'Close' : 'Change'}
+          </button>
+        </div>
+
+        {showStyleOptions && (
+          <div className="style-options fade-in">
+            {themes.map((theme) => (
+              <button
+                key={theme.id}
+                className={`style-option ${activeStyle === theme.id ? 'active' : ''}`}
+                onClick={() => handleStyleSelect(theme)}
+              >
+                <span className="style-option-name">{theme.name}</span>
+                <span className="style-option-vibe">{theme.vibe}</span>
+                <div className="style-option-swatch">
+                  <span
+                    className="style-swatch-dot"
+                    style={{ background: theme.colors.bg }}
+                  />
+                  <span
+                    className="style-swatch-dot"
+                    style={{ background: theme.colors.accent }}
+                  />
+                  <span
+                    className="style-swatch-dot"
+                    style={{ background: theme.colors.text }}
+                  />
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <hr className="modality-divider" />
 
       <div className="modality-cards">
         {MODALITIES.map((m) => (

@@ -1,4 +1,5 @@
 import { Message, DiagnosticData, ExperienceBlock, ExperienceResponse } from './types';
+import { getThemeById, getMicroCopyGuide } from './themes';
 
 const MODEL_DIAGNOSTIC = 'claude-opus-4-6';
 const MODEL_GENERATION = 'claude-sonnet-4-6';
@@ -58,7 +59,8 @@ Return ONLY valid JSON with this exact structure:
   "learningFocus": "The specific learning focus — not vague like 'communication' but specific like 'having difficult conversations with direct reports when performance is slipping'",
   "realContext": "The actual situation, pressure, or circumstance that makes this relevant right now",
   "keyGap": "What specifically needs to shift — is it knowledge, skill, mindset, or habit? Be specific about what the gap actually is",
-  "suggestedModality": "One of: scenario, challenge, build, reflection — based on how the learner talked during the diagnostic (story-tellers → scenario, practical/impatient → challenge, explainers/teachers → build, thoughtful/introspective → reflection)",
+  "suggestedModality": "One of: scenario, challenge, reflection — based on how the learner talked during the diagnostic (story-tellers → scenario, practical/impatient → challenge, thoughtful/introspective → reflection)",
+  "suggestedVisualStyle": "One of: warm-inviting, clean-professional, bold-energetic, calm-focused — based on how the learner talked and their relationship to the learning. Use these signals: uncertain/new/needs-support → warm-inviting, experienced-professional/outcome-focused → clean-professional, motivated/competitive/engagement-driven → bold-energetic, deep-thinker/reflective/considered → calm-focused",
   "tonePace": "How long, how deep, how direct the experience should be. Include whether the learner seems rushed or engaged, skeptical or open",
   "motivationHook": "What the learner said they actually care about — the thing that should be woven into the experience to make it feel personally relevant"
 }`;
@@ -98,7 +100,6 @@ BLOCK TYPE GUIDE:
 MODALITY ADAPTATION:
 - "scenario": Build the experience primarily around a realistic, branching situation. Heavy on scenarios and multiplechoice decisions. The learner works through a situation step by step.
 - "challenge": Structure around a concrete problem to solve. Present the problem, let them think, offer frameworks, then challenge them to apply it.
-- "build": The learner creates something they could share with their team. Guide them through constructing it step by step with questions and reflections.
 - "reflection": A structured reflective journey. Guided questions that build on each other, with insights woven between.
 
 GUIDELINES:
@@ -273,7 +274,8 @@ export async function generateReflection(
 export async function generateExperience(
   messages: Message[],
   diagnosticData: DiagnosticData,
-  modality: string
+  modality: string,
+  visualStyleId?: string
 ): Promise<ExperienceBlock[]> {
   const conversationText = messages
     .map((m) => `${m.role === 'user' ? 'Learner' : 'Coach'}: ${m.content}`)
@@ -282,9 +284,13 @@ export async function generateExperience(
   const modalityLabels: Record<string, string> = {
     scenario: 'Work through a realistic scenario',
     challenge: 'Solve a challenge or problem',
-    build: 'Learn by building something to share with their team',
     reflection: 'Structured reflection with guided questions',
   };
+
+  // Inject the selected visual style's micro-copy tone guide
+  const theme = getThemeById(visualStyleId || 'calm-focused');
+  const microCopyGuide = getMicroCopyGuide(theme);
+  const systemWithStyle = EXPERIENCE_SYSTEM + '\n\n' + microCopyGuide;
 
   const response = await fetch('/api/chat', {
     method: 'POST',
@@ -296,7 +302,7 @@ export async function generateExperience(
           content: `Diagnostic conversation:\n\n${conversationText}\n\nStructured diagnostic data:\n${JSON.stringify(diagnosticData, null, 2)}\n\nChosen learning modality: ${modalityLabels[modality] || modality}\n\nGenerate the personalised learning experience as a JSON array of blocks.`,
         },
       ],
-      system: EXPERIENCE_SYSTEM,
+      system: systemWithStyle,
       model: MODEL_GENERATION,
       max_tokens: 4096,
     }),
