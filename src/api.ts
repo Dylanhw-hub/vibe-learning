@@ -135,6 +135,23 @@ GUIDELINES:
 
 Return ONLY the JSON object. No markdown code fences.`;
 
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+async function handleApiResponse(response: Response): Promise<{ content: string }> {
+  if (!response.ok) {
+    let errorMsg: string;
+    try {
+      const err = await response.json();
+      errorMsg = err.error || `API error (${response.status})`;
+    } catch {
+      const text = await response.text().catch(() => '');
+      errorMsg = text || `API error (${response.status})`;
+    }
+    throw new Error(errorMsg);
+  }
+  return response.json();
+}
+
 // ── API Functions ───────────────────────────────────────────────────────────
 
 export async function streamDiagnosticMessage(
@@ -153,8 +170,15 @@ export async function streamDiagnosticMessage(
   });
 
   if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || 'Stream request failed');
+    let errorMsg: string;
+    try {
+      const err = await response.json();
+      errorMsg = err.error || 'Stream request failed';
+    } catch {
+      const text = await response.text().catch(() => '');
+      errorMsg = text || 'Stream request failed';
+    }
+    throw new Error(errorMsg);
   }
 
   const reader = response.body!.getReader();
@@ -214,9 +238,7 @@ export async function extractDiagnosticData(
     }),
   });
 
-  const data = await response.json();
-  if (data.error) throw new Error(data.error);
-
+  const data = await handleApiResponse(response);
   return JSON.parse(data.content);
 }
 
@@ -244,8 +266,7 @@ export async function generateReflection(
     }),
   });
 
-  const data = await response.json();
-  if (data.error) throw new Error(data.error);
+  const data = await handleApiResponse(response);
   return data.content;
 }
 
@@ -277,12 +298,11 @@ export async function generateExperience(
       ],
       system: EXPERIENCE_SYSTEM,
       model: MODEL_GENERATION,
-      max_tokens: 8192,
+      max_tokens: 4096,
     }),
   });
 
-  const data = await response.json();
-  if (data.error) throw new Error(data.error);
+  const data = await handleApiResponse(response);
 
   // Parse JSON — handle potential markdown code fences and surrounding text
   let content = data.content.trim();
@@ -348,8 +368,7 @@ export async function generatePersonalisedClosing(
     }),
   });
 
-  const data = await response.json();
-  if (data.error) throw new Error(data.error);
+  const data = await handleApiResponse(response);
 
   let content = data.content.trim();
   if (content.startsWith('```')) {
